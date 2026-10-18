@@ -16,6 +16,7 @@ const SKILL_SECTIONS = [
       { label: "React", level: 90 },
       { label: "Next.js", level: 88 },
       { label: "Angular", level: 70 },
+      { label: "Vue.js", level: 20 },
     ],
   },
   {
