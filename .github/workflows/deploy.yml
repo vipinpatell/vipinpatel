@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: deploy-vipinpatel-in
+  cancel-in-progress: true
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -28,12 +32,27 @@ jobs:
         run: npm ci
 
       - name: Build static website
-        run: npm run build
+        env:
+          NEXT_PUBLIC_RECAPTCHA_SITE_KEY: ${{ secrets.NEXT_PUBLIC_RECAPTCHA_SITE_KEY }}
+        run: |
+          if [ -z "$NEXT_PUBLIC_RECAPTCHA_SITE_KEY" ]; then
+            echo "::error::Missing GitHub secret NEXT_PUBLIC_RECAPTCHA_SITE_KEY"
+            exit 1
+          fi
+          npm run build
+
+      - name: Verify static export
+        run: |
+          test -f out/index.html || {
+            echo "::error::Build did not generate out/index.html"
+            exit 1
+          }
 
       - name: Set up SSH
         env:
           VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
         run: |
+          set -eu
           mkdir -p ~/.ssh
           printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
@@ -44,6 +63,7 @@ jobs:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_PORT: ${{ secrets.VPS_PORT }}
         run: |
+          set -eu
           ssh-keyscan -p "$VPS_PORT" "$VPS_HOST" >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
@@ -53,8 +73,9 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_PORT: ${{ secrets.VPS_PORT }}
         run: |
+          set -eu
           rsync -az --delete \
-            -e "ssh -p $VPS_PORT" \
+            -e "ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -p $VPS_PORT" \
             out/ "$VPS_USER@$VPS_HOST:/var/www/vipinpatel.in/app/out/"
 
       - name: Verify deployed website
@@ -63,5 +84,9 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_PORT: ${{ secrets.VPS_PORT }}
         run: |
-          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
+          set -eu
+          ssh -i ~/.ssh/id_ed25519 \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
             'test -f /var/www/vipinpatel.in/app/out/index.html'
