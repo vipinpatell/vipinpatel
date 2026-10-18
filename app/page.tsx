@@ -40,7 +40,7 @@ export default function Home() {
 
               <p className="text-gray-400 leading-relaxed mb-10">
                 I build high-performance, scalable, and user-focused web
-                applications using React, Next.js, and TypeScript. With 9+ years
+                applications using React, Next.js, and TypeScript. With 10+ years
                 of experience, I focus on clean UI architecture, performance
                 optimization, and maintainable frontend systems.
               </p>
